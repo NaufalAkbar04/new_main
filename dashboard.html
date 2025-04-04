@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .header {
+            background: #007bff;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logout-btn {
+            background: white;
+            color: #007bff;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .container {
+            display: flex;
+            min-height: calc(100vh - 60px);
+        }
+        .sidebar {
+            width: 250px;
+            background: #f8f9fa;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+        .main-content {
+            flex: 1;
+            padding: 20px;
+        }
+        .data-card {
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>Welcome to Your Dashboard</h2>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+    
+    <div class="container">
+        <div class="sidebar">
+            <h3>Menu</h3>
+            <ul>
+                <li><a href="#" onclick="loadData()">View Data</a></li>
+                <li><a href="#" onclick="showForm()">Submit Form</a></li>
+            </ul>
+        </div>
+        
+        <div class="main-content" id="content-area">
+            <div class="data-card">
+                <h3>Your Data</h3>
+                <div id="data-display"></div>
+            </div>
+            
+            <div class="data-card" id="form-container" style="display: none;">
+                <h3>Submit New Data</h3>
+                <form id="data-form">
+                    <div class="form-group">
+                        <label>Title</label>
+                        <input type="text" id="form-title" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="form-description" rows="4" required></textarea>
+                    </div>
+                    <button type="button" onclick="submitForm()">Submit</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load user data on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadData();
+        });
+
+        // Load data from server
+        async function loadData() {
+            try {
+                const response = await fetch('/api/data', {
+                    credentials: 'include'
+                });
+                
+                if (response.status === 401) {
+                    window.location.href = 'auth.html';
+                    return;
+                }
+                
+                const data = await response.json();
+                displayData(data);
+                document.getElementById('form-container').style.display = 'none';
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to load data');
+            }
+        }
+
+        // Display data in the UI
+        function displayData(data) {
+            const container = document.getElementById('data-display');
+            
+            if (data.length === 0) {
+                container.innerHTML = '<p>No data found</p>';
+                return;
+            }
+            
+            let html = '<ul>';
+            data.forEach(item => {
+                html += `<li>
+                    <h4>${item.data.title || 'Untitled'}</h4>
+                    <p>${item.data.description || 'No description'}</p>
+                    <small>${new Date(item.created_at).toLocaleString()}</small>
+                </li>`;
+            });
+            html += '</ul>';
+            
+            container.innerHTML = html;
+        }
+
+        // Show form for new submissions
+        function showForm() {
+            document.getElementById('form-container').style.display = 'block';
+            document.getElementById('data-display').innerHTML = '';
+        }
+
+        // Submit new form data
+        async function submitForm() {
+            const title = document.getElementById('form-title').value;
+            const description = document.getElementById('form-description').value;
+            
+            try {
+                const response = await fetch('/api/submit', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        formData: { title, description }
+                    })
+                });
+                
+                if (response.ok) {
+                    alert('Form submitted successfully!');
+                    document.getElementById('data-form').reset();
+                    await loadData();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Submission failed');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Submission failed');
+            }
+        }
+
+        // Logout user
+        async function logout() {
+            try {
+                await fetch('/api/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                window.location.href = 'auth.html';
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
